@@ -1,5 +1,5 @@
 from sqlalchemy import URL
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 from app.config import settings
 
@@ -11,6 +11,8 @@ database_url = URL.create(
     host=settings.postgres_host,
     port=settings.postgres_port,
     database=settings.postgres_db,
+   
 )
 
 engine = create_async_engine(database_url)
+session_factory = async_sessionmaker(engine, expire_on_commit=False)
