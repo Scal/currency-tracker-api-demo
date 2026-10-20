@@ -1,11 +1,13 @@
 from decimal import Decimal
 from xml.etree import ElementTree
+from typing import get_args
+from app.schemas import CurrencyCode
 
 import httpx
 
 
 CBR_URL = "https://www.cbr.ru/scripts/XML_daily.asp"
-SUPPORTED_CURRENCIES = {"USD", "EUR", "CNY"}
+SUPPORTED_CURRENCIES = set(get_args(CurrencyCode)) - {"RUB"}
 
 async def fetch_rates_xml() -> bytes:
     async with httpx.AsyncClient(timeout=15.0) as client:

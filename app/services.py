@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
-
 from app.bank import fetch_rates
 from app.db import session_factory
 from app.models import CurrencyRate
 from sqlalchemy import select
+from decimal import Decimal, ROUND_HALF_UP
+
 
 async def update_rates() -> int:
     rates = await fetch_rates()
@@ -23,6 +24,7 @@ async def update_rates() -> int:
 
     return len(records)
 
+
 async def get_latest_rates() -> list[CurrencyRate]:
     statement = (
         select(CurrencyRate)
@@ -37,6 +39,7 @@ async def get_latest_rates() -> list[CurrencyRate]:
     async with session_factory() as session:
         result = await session.scalars(statement)
         return list(result.all())
+
 
 async def get_rates_history(
     currency: str,
@@ -57,3 +60,31 @@ async def get_rates_history(
     async with session_factory() as session:
         result = await session.scalars(statement)
         return list(result.all())
+
+
+async def convert_currency(
+    from_currency: str,
+    to_currency: str,
+    amount: Decimal,
+) -> dict[str, Decimal]:
+    if from_currency == to_currency:
+        rate_used = Decimal("1")
+    else:
+        records = await get_latest_rates()
+        rates = {record.currency_code: record.rate for record in records}
+        rates["RUB"] = Decimal("1")
+
+        if from_currency not in rates or to_currency not in rates:
+            raise ValueError("Необходимые курсы ещё не загружены")
+
+        rate_used = rates[from_currency] / rates[to_currency]
+
+    result = (amount * rate_used).quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP,
+    )
+
+    return {
+        "result": result,
+        "rate_used": rate_used,
+    }
