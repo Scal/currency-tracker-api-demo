@@ -23,7 +23,6 @@ async def update_rates() -> int:
 
     return len(records)
 
-
 async def get_latest_rates() -> list[CurrencyRate]:
     statement = (
         select(CurrencyRate)
@@ -33,6 +32,26 @@ async def get_latest_rates() -> list[CurrencyRate]:
             CurrencyRate.updated_at.desc(),
             CurrencyRate.id.desc(),
         )
+    )
+
+    async with session_factory() as session:
+        result = await session.scalars(statement)
+        return list(result.all())
+
+async def get_rates_history(
+    currency: str,
+    limit: int,
+    offset: int,
+) -> list[CurrencyRate]:
+    statement = (
+        select(CurrencyRate)
+        .where(CurrencyRate.currency_code == currency)
+        .order_by(
+            CurrencyRate.updated_at.desc(),
+            CurrencyRate.id.desc(),
+        )
+        .limit(limit)
+        .offset(offset)
     )
 
     async with session_factory() as session:
