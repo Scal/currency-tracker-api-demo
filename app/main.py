@@ -1,5 +1,7 @@
+import asyncio
+from contextlib import asynccontextmanager, suppress
+from app.db import engine
 from fastapi import FastAPI, HTTPException, Query
-
 
 from app.schemas import (
     ConvertRequest,
@@ -12,10 +14,26 @@ from app.services import (
     convert_currency,
     get_latest_rates,
     get_rates_history,
+    run_rates_updater
 )
 
-app = FastAPI(title="Сервис мониторинга курса валют")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(run_rates_updater())
+    try:
+        yield
+    finally:
+        task.cancel()
+        try:
+            with suppress(asyncio.CancelledError):
+                await task
+        finally:
+            await engine.dispose()
 
+app = FastAPI(
+    title="Сервис мониторинга курса валют",
+    lifespan=lifespan,
+)
 @app.get("/api/v1/rates/latest", response_model=list[RateResponse])
 async def latest_rates():
     return await get_latest_rates()

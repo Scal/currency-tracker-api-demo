@@ -1,10 +1,15 @@
-from datetime import datetime, timezone
+import asyncio
+import logging
+
+from app.config import settings
 from app.bank import fetch_rates
 from app.db import session_factory
 from app.models import CurrencyRate
+from datetime import datetime, timezone
 from sqlalchemy import select
 from decimal import Decimal, ROUND_HALF_UP
 
+logger = logging.getLogger(__name__)
 
 async def update_rates() -> int:
     rates = await fetch_rates()
@@ -88,3 +93,12 @@ async def convert_currency(
         "result": result,
         "rate_used": rate_used,
     }
+
+async def run_rates_updater() -> None:
+    while True:
+        try:
+            await update_rates()
+        except Exception:
+            logger.exception("Не удалось обновить курсы валют")
+
+        await asyncio.sleep(settings.update_interval_seconds)
